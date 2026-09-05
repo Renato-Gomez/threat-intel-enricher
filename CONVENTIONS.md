@@ -31,3 +31,13 @@
 
 - Separate parsing/extraction logic (Pure Functions) from API calls (Imperative Shell).
 - `ThreatExtractor` should only parse strings and return `pydantic` models, making it 100% testable without mocking HTTP requests.
+
+# 🧪 Testing Rules
+
+- All tests must reside in the `tests/` directory at the root of the project.
+- Inside `tests/`, use the `unit/` directory for unit tests. (Later, an `integration/` directory can be added for integration tests).
+- All test files must start with the `test_` prefix (e.g., `test_config.py`).
+- All test methods or functions within a class must start with the `test_` prefix.
+- **Unit Test Isolation:** Each test must be independent, kept simple, and test specific and granular parts of the code.
+- **No Side Effects:** Tests must never have side effects; the system must remain in the exact same state as before the test execution.
+- **Pytest Ecosystem:** Leverage `pytest` features appropriately (e.g., `@pytest.mark.skip` to skip, `@pytest.mark.parametrize` to reuse inputs across different tests, and `pytest.MonkeyPatch` for safely mocking environment variables or system states without side effects).

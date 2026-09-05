@@ -1,0 +1,10 @@
+{
+  "alert_id": "ALT-2023-001",
+  "description": "Suspicious connection to known malicious infrastructure.",
+  "destination_ip": "185.153.196.22",
+  "file_hash": "44d88612fea8a8f36de82e1278abb02f",
+  "payload_snippet": "GET /config.bin HTTP/1.1\r\nHost: malicioustestdomain.com\r\nUser-Agent: curl/7.68.0",
+  "severity": "HIGH",
+  "source_ip": "192.168.1.100",
+  "timestamp": "2023-10-27T14:32:00Z"
+}
