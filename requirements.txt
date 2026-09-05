@@ -1,0 +1,20 @@
+# requirements.txt for threat-intel-enricher
+#
+# Supported interpreters follow ``requires-python`` constraints (>=3.11,<3.14).
+
+# Core HTTP client for interacting with external Threat Intelligence APIs (VirusTotal, AbuseIPDB)
+requests==2.31.0
+
+# Environment and secret management to prevent hardcoded API keys in the codebase
+python-dotenv==1.0.1
+
+# Data validation and serialization for strictly typing the extracted Indicators of Compromise (IoCs)
+pydantic>=2.9.0
+
+# ---------------------------------------------------------
+# CI/CD and Code Quality Dependencies
+# ---------------------------------------------------------
+black==23.9.1         # Uncompromising code formatter
+pre-commit==3.5.0     # Framework for managing git pre-commit hooks
+pytest==7.4.2         # Testing framework for core logic isolation
+ruff==0.1.2           # Extremely fast Python linter, replaces flake8/isort

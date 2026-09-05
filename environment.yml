@@ -1,0 +1,30 @@
+# Conda environment configuration for Threat Intel Enricher.
+name: threat-intel-env
+
+# Conda channels to search for packages
+# conda-forge: Community-maintained packages with high quality
+channels:
+- conda-forge
+- defaults
+
+# Environment variables to be set when the environment is activated
+variables:
+  # Default log level for the automation pipeline
+  LOG_LEVEL: INFO
+  # Global timeout for external API requests to prevent hanging processes
+  REQUEST_TIMEOUT_SECONDS: 10
+
+# Package dependencies for the environment
+dependencies:
+  # Python version constraint
+  # Minimum 3.11 for modern typing features, maximum <3.14 to avoid compatibility issues
+- python>=3.11, <3.14
+
+    # Python package installer
+    # Required for installing packages from requirements.txt
+- pip
+
+    # Pip-installed packages from requirements.txt
+    # Delegates Python-specific package management to pip
+- pip:
+  - -r requirements.txt

@@ -1,0 +1,18 @@
+# Virtual environments and Conda/Mamba
+.conda/
+envs/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables and secrets
+.env
+
+# Local development environments
+.vscode/
+.idea/
+
+# Testing artifacts
+.pytest_cache/
+coverage.xml
+htmlcov/
