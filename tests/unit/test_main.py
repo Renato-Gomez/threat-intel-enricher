@@ -24,8 +24,9 @@ def test_setup_argparse_creates_dynamic_flags():
     """
     # 1. Provide a dummy class to the setup function
     available_providers = [DummyTestProvider]
+    available_formatters = {"json": None}  # Dummy formatter for testing
 
-    parser, flags_map = setup_argparse(available_providers)
+    parser, flags_map = setup_argparse(available_providers, available_formatters)
 
     # 2. Verify that the flags_map correctly inferred the name:
     # "DummyTestProvider" -> remove "Provider" -> lowercase -> "dummytest"
