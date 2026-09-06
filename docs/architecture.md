@@ -1,68 +1,41 @@
-# Arquitectura y Flujo de Alertas de Seguridad
+# Arquitectura y Escalabilidad
 
-Este documento explica el ciclo de vida de una alerta de seguridad, desde su origen en la red corporativa hasta que es procesada por **Automated Threat Intel Enrichment Pipeline**.
+Este proyecto fue diseñado siguiendo principios avanzados de ingeniería de software, específicamente el patrón **Functional Core, Imperative Shell (FCIS)** y el principio de **Abierto/Cerrado (Open/Closed Principle)** mediante una **Arquitectura de Plugins dinámicos**.
 
-## Diagrama de Flujo del Ecosistema Real
+## Diagrama de Flujo
 
-El siguiente diagrama ilustra cómo las distintas herramientas de ciberseguridad interactúan para generar la alerta en formato JSON que la aplicación procesará:
+El ciclo de vida de los datos fluye desde el exterior, se valida en el centro puramente funcional, vuelve a interactuar con el exterior para el enriquecimiento, y finalmente se emite.
 
 ```text
-[ Empleado / Endpoint ]
-       │
-       ├─ (Descarga Archivo) ──────> [ EDR (Ej. CrowdStrike) ]
-       │                                     │
-       └─ (Conexión Maliciosa) ────> [ Firewall (Ej. Palo Alto) ]
-                                             │
-                                             ▼
-                                     [ SIEM (Ej. Splunk) ]
-                                     (Correlaciona y genera JSON)
-                                             │
-                                             ▼
-                             [Threat Intel Enricher (App) ]
-                                             │
-                      ┌──────────────────────┴──────────────────────┐
-                      ▼                                             ▼
-           [ AbuseIPDB API ]                               [ VirusTotal API ]
-          (Analiza IPs sospechosas)                       (Analiza Hashes/Dominios)
-                      │                                             │
-                      └──────────────────────┬──────────────────────┘
-                                             ▼
-                                [ Reporte Final Enriquecido ]
-                                   (Para Analista de SOC)
++-------------------+       +-----------------------+       +-------------------+
+| 1. JSON Alert     | ----> | 2. Functional Core    | ----> | 3. Validated IoCs |
+| (Raw Data)        |       |    (IoCExtractor)     |       |    (Pydantic)     |
++-------------------+       +-----------------------+       +-------------------+
+                                                                     |
+                                                                     v
++-------------------+       +-----------------------+       +-------------------+
+| 6. CLI Output     | <---- | 5. Output Formatter   | <---- | 4. Imperative Shell|
+| (JSON / Markdown) |       |    (Plugin Pattern)   |       |    (API Providers) |
++-------------------+       +-----------------------+       +-------------------+
 ```
 
----
+## El Núcleo Funcional (Functional Core)
+Toda la lógica de extracción de indicadores reside en `src/core/ioc_extractor.py`. Utiliza Expresiones Regulares (Regex) complejas para analizar campos de texto desestructurados y devuelve un modelo validado estáticamente con Pydantic.
+Esta capa **no hace peticiones a internet** ni lee el disco duro, lo que permite que sea 100% testeable mediante pruebas unitarias en milisegundos y totalmente libre de efectos secundarios.
 
-## Anatomía de la Alerta (Mapeo de Datos Reales)
+## La Capa de Red (Imperative Shell)
+La interacción con el mundo exterior se realiza a través del paquete `src/providers/`.
+Existe una clase abstracta principal `BaseProvider` (Patrón Template Method / Strategy) que estandariza el manejo de errores (como los Timeouts y el Rate Limit HTTP 429). Absolutamente todos los proveedores deben heredar de esta clase, asegurando que ningún proveedor pueda crashear la aplicación principal.
 
-La aplicación recibe datos en formato JSON (`data/alert_mock.json`). Cada uno de estos atributos proviene de herramientas específicas del mercado:
+## Extensibilidad: Arquitectura de Plugins
 
-### 1. `alert_id` y `timestamp`
+El orquestador (`src/main.py`) **no tiene proveedores ni formateadores "hardcodeados"**. Utiliza las librerías `pkgutil` e `importlib` (nativas de Python) para escanear las carpetas `src/providers/` y `src/formatters/` en tiempo real.
 
-- **Qué son:** Identificadores únicos y la marca de tiempo de cuándo ocurrió el evento.
-- **Origen Real:** Plataformas SIEM / XDR como **Splunk**, **Elastic Security (ELK)** o **Microsoft Sentinel**.
+### ¿Cómo agregar un nuevo Proveedor?
 
-### 2. `severity` (Severidad)
+Gracias a esta arquitectura, escalar el ecosistema del proyecto no requiere modificar el script principal, cumpliendo el OCP:
 
-- **Qué es:** El nivel de criticidad (HIGH, MEDIUM, LOW).
-- **Origen Real:** El motor de reglas de correlación del SIEM asigna este nivel basado en el comportamiento observado.
-
-### 3. `source_ip` (IP de Origen)
-
-- **Qué es:** La dirección IP dentro de la red corporativa que originó la conexión.
-- **Origen Real:** **EDR** instalados en las computadoras (ej. **CrowdStrike Falcon**, **SentinelOne**) o logs del Directorio Activo. Identifica a la víctima interna.
-
-### 4. `destination_ip` (IP de Destino)
-
-- **Qué es:** La IP externa (en internet) a la que la víctima intentó conectarse (ej. Servidor de Comando y Control).
-- **Origen Real:** Firewalls perimetrales o Proxies (ej. **Palo Alto Networks**, **Fortigate**).
-
-### 5. `payload_snippet` (Fragmento de la Carga Útil)
-
-- **Qué es:** Un fragmento crudo del tráfico de red (ej. los encabezados HTTP). Contiene dominios maliciosos, User-Agents sospechosos, etc.
-- **Origen Real:** Herramientas IDS/IPS o analizadores de tráfico (NDR) como **Suricata**, **Zeek** o **Snort** que analizan paquetes a nivel de red.
-
-### 6. `file_hash`
-
-- **Qué es:** La huella digital criptográfica (MD5/SHA256) del binario malicioso.
-- **Origen Real:** Generado en tiempo real por el EDR de la máquina o por un entorno de _Sandbox_ dinámico antes de que el archivo logre ejecutarse completamente.
+1. **Crear el Archivo:** Crea un nuevo archivo en la carpeta correspondiente, ej. `src/providers/shodan.py`.
+2. **Crear la Clase:** Define una clase `ShodanProvider` que herede obligatoriamente de `BaseProvider`.
+3. **Llave API:** Agrega la variable `SHODAN_API_KEY` a tu archivo `.env`.
+4. **Magia de Autodescubrimiento:** ¡Listo! Al ejecutar `python src/main.py --help`, el orquestador descubrirá automáticamente tu clase, extraerá el nombre y generará la bandera `--shodan` en la interfaz de comandos. El comportamiento es idéntico al agregar un nuevo Formato en `src/formatters/`.
